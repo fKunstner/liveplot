@@ -3,8 +3,6 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 
-
-
 [project]
 name = "liveplot"
 version = "0.1.0"
@@ -21,8 +19,25 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Matplotlib"
 ]
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "typing_extensions",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/fkunstner/liveplot"
 "Source" = "https://github.com/fkunstner/liveplot"
 "Bug Tracker" = "https://github.com/fKunstner/liveplot/issues"
+
+
+[tool.black]
+line-length = 88
+
+
+[tool.isort]
+profile = "black"
+
+
+[tool.pylint.format]
+max-line-length = "88"

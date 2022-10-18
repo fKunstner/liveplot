@@ -1,0 +1,6 @@
+# linting
+black
+isort
+pylint
+# testing
+pytest
