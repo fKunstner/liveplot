@@ -2,5 +2,9 @@
 black
 isort
 pylint
+mypy
 # testing
 pytest
+pytest-cov
+# ci
+tox

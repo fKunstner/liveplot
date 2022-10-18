@@ -25,6 +25,7 @@ dependencies = [
   "typing_extensions",
 ]
 
+
 [project.urls]
 "Homepage" = "https://github.com/fkunstner/liveplot"
 "Source" = "https://github.com/fkunstner/liveplot"
@@ -41,3 +42,21 @@ profile = "black"
 
 [tool.pylint.format]
 max-line-length = "88"
+
+
+[tool.pytest.ini_options]
+addopts = "--cov=liveplot"
+testpaths = ["tests"]
+
+
+[tool.mypy]
+mypy_path = "src"
+no_implicit_optional = true
+strict_equality = true
+
+
+[[tool.mypy.overrides]]
+module = [
+    "matplotlib.*",
+]
+ignore_missing_imports = true

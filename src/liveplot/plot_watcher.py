@@ -3,14 +3,13 @@ import logging
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import PurePath
-from types import ModuleType
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from typing_extensions import Literal, get_args
 
-FuncName = Literal["load_data", "make_figure", "settings"]
+FuncName = Literal["load_data", "postprocess", "make_figure", "settings"]
 
 
 logger = logging.getLogger("liveplot")
@@ -46,6 +45,18 @@ def except_exec(func, *args, **kwargs):
         return None
 
 
+def _import_module(file_path: PurePath):
+    logger.debug(f"Importing module.")
+    spec = spec_from_file_location("module.name", file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not import module spec in {file_path}")
+    module = module_from_spec(spec)
+    if module is None:
+        raise ImportError(f"Could not create module from spec in {file_path}")
+    spec.loader.exec_module(module)
+    return module
+
+
 class WrappedFig:
     """Wraps a matplotlib figure, holds interactive element and quits on close."""
 
@@ -72,25 +83,18 @@ class PlottingCode:
     def __init__(self, file_path: PurePath):
         logger.debug(f"Creating PlottingCode object for {file_path}.")
         self._file_path: PurePath = file_path
-        self._functions_source_last_exec: Dict[FuncName, Optional] = {}
-        self._module: Optional[ModuleType] = None
+        self._functions_source_last_exec: Dict[FuncName, Any] = {}
+        self._module = None
         self._last_change = None
 
     def load_module(self):
         logger.debug(f"Loading module at {self._file_path}.")
+
+        self._module = _import_module(self._file_path)
         self._last_change = except_exec(file_modified_date, self._file_path)
-        self._module = self._import_module(self._file_path)
 
         for f_name in get_args(FuncName):
             self._patch_function_if_missing(f_name)
-
-    @staticmethod
-    def _import_module(file_path: PurePath) -> ModuleType:
-        logger.debug(f"Importing module.")
-        spec = spec_from_file_location("module.name", file_path)
-        module = module_from_spec(spec)
-        except_exec(spec.loader.exec_module, module)
-        return module
 
     def _patch_function_if_missing(self, f_name: FuncName):
         if not hasattr(self._module, f_name):
@@ -129,6 +133,12 @@ class PlottingCode:
     def make_figure(self, fig, data):
         return self._exec_function_and_save_source("make_figure", fig, data)
 
+    def postprocess_has_changed(self):
+        return self._function_has_changed("postprocess")
+
+    def postprocess(self, data):
+        return self._exec_function_and_save_source("postprocess", data)
+
     def settings_has_changed(self):
         return self._function_has_changed("settings")
 
@@ -165,14 +175,22 @@ class PlotWatcher:
     def _refresh(self):
         if self.plotting_code.file_has_changed():
             logger.debug(f"PlotWatcher: Refresh: plotting code has changed.")
-            self.plotting_code.load_module()
+            except_exec(self.plotting_code.load_module)
 
             needs_redraw = False
+            needs_postprocess = False
             if self.plotting_code.load_data_has_changed():
                 logger.debug(f"PlotWatcher: load_data has changed.")
                 self.data = self.plotting_code.load_data()
                 needs_redraw = True
+                needs_postprocess = True
                 logger.info("Reloaded load_data")
+
+            if needs_postprocess or self.plotting_code.postprocess_has_changed():
+                logger.debug(f"PlotWatcher: postprocess has changed.")
+                self.data = self.plotting_code.postprocess(self.data)
+                needs_redraw = True
+                logger.info("Reloaded postprocess")
 
             if self.plotting_code.settings_has_changed():
                 logger.debug(f"PlotWatcher: settings has changed.")
@@ -194,4 +212,4 @@ class PlotWatcher:
     def refresh_loop(self):
         while True:
             self._refresh()
-            plt.pause(1)
+            plt.pause(2)
