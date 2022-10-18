@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+
+
+[project]
+name = "liveplot"
+version = "0.1.0"
+authors = [
+  { name="Frederik Kunstner", email="frederik.kunstner@gmail.com" },
+]
+description = "A utility to update matplotlib plots live on save"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Framework :: Matplotlib"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/fkunstner/liveplot"
+"Source" = "https://github.com/fkunstner/liveplot"
+"Bug Tracker" = "https://github.com/fKunstner/liveplot/issues"
