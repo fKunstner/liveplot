@@ -1,13 +1,12 @@
-import os
-import pdb
-import string
-import tempfile
+import textwrap
 from pathlib import PurePath
-from random import choices
 
 import pytest
 
-from liveplot.plot_watcher import _import_module, except_exec
+# noinspection PyProtectedMember
+from liveplot.code_loader import _import_module, except_exec
+
+# pylint: disable=missing-docstring
 
 
 def test_except_exec_doesnt_trigger_exception():
@@ -17,28 +16,35 @@ def test_except_exec_doesnt_trigger_exception():
     except_exec(raise_exception)
 
 
-def make_module(tmpfolder, module_code):
-    filename = "".join(choices(string.ascii_uppercase, k=10)) + ".py"
-    filepath = os.path.join(tmpfolder, filename)
-    with open(filepath, "w") as f:
-        f.write(module_code)
-    return PurePath(filepath)
+def test_import_empty_module(make_module):
+    _import_module(make_module(""))
 
 
-def test_load_empty(tmpfolder):
-    _import_module(make_module(tmpfolder, ""))
+def test_import_invalid_path():
+    with pytest.raises(ImportError):
+        _import_module(PurePath(""))
 
 
-def test_load_module(tmpfolder):
-    module = _import_module(make_module(tmpfolder, "def f(): return 1"))
+def test_import_module_with_function(make_module):
+    module = _import_module(make_module("def f(): return 1"))
     assert module.f() == 1
 
 
-def test_load_import_mpl(tmpfolder):
-    module = _import_module(make_module(tmpfolder, "import matplotlib"))
+def test_import_module_that_imports_dependencies(make_module):
+    module = _import_module(
+        make_module(
+            textwrap.dedent(
+                """\
+                import matplotlib
+                import numpy as np
+                """
+            ),
+        )
+    )
     assert hasattr(module, "matplotlib")
+    assert hasattr(module, "np")
 
 
-@pytest.mark.xfail
-def test_load_bad_code(tmpfolder):
-    _import_module(make_module(tmpfolder, "def f() return"))
+def test_import_module_with_syntax_error(make_module):
+    with pytest.raises(SyntaxError):
+        _import_module(make_module("def f() return"))
