@@ -1,105 +1,127 @@
 import logging
-import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+from liveplot.module_loader import (
+    ModuleExecutionError,
+    ModuleLoader,
+    wrap_execution_error,
+)
+from liveplot.plt_interface import PltInterface
 
-from liveplot.module_loader import ModuleLoader, _except_exec
+logger = logging.getLogger("liveplot.plot_watcher")
 
-logger = logging.getLogger("liveplot")
+
+def error_thing_failed(thing: str):
+    return f"{thing} failed. Waiting on next save to try to reload."
 
 
 class PlotWatcher:
-    def __init__(self, file_path: Path):
+    def __init__(self, plotting_module: ModuleLoader, plotting_stuff: PltInterface):
+        self.plt_module = plotting_module
+        self.plt_interface = plotting_stuff
+        self.data = None
+        self.interactive_elements = None
+
+    @staticmethod
+    def from_filepath(file_path: Path, plt_interface: Optional[PltInterface] = None):
         logger.debug(f"Creating PlotWatcher for {file_path}.")
 
-        self.file_path: Path = file_path
-        self.plotting_code: ModuleLoader = ModuleLoader(
-            self.file_path,
-            patch_if_missing={
-                "load_data": lambda: None,
-                "postprocess": lambda data: data,
-                "make_figure": lambda fig, data: None,
-                "settings": lambda plt_instance: None,
-            },
+        def dummy_load_data():
+            return None
+
+        # noinspection PyUnusedLocal
+        def dummy_postprocess(data):
+            return None
+
+        # noinspection PyUnusedLocal
+        def dummy_make_figure(fig, data):
+            return None
+
+        # noinspection PyUnusedLocal
+        def dummy_settings(plt):
+            return None
+
+        return PlotWatcher(
+            ModuleLoader(
+                file_path,
+                patch_if_missing={
+                    "load_data": dummy_load_data,
+                    "postprocess": dummy_postprocess,
+                    "make_figure": dummy_make_figure,
+                    "settings": dummy_settings,
+                },
+            ),
+            plt_interface if plt_interface is not None else PltInterface(show=True),
         )
 
-        self.data = None
-        self.fig: Optional[Figure] = None
-        self.interactive_elements = None
-        self._close_handler: Optional[Callable] = None
-
-    def setup(self):
-        logger.debug("PlotWatcher: Setup.")
-        self.plotting_code.load_module()
-        self._initial_plot()
-
-    def new_figure(self):
-        self.fig = plt.figure()
-        self._close_handler: Optional[Callable] = self.fig.canvas.mpl_connect(
-            "close_event", lambda event: sys.exit()
-        )
-        plt.show(block=False)
-
-    def close_without_exit(self):
-        if self.fig is not None:
-            self.fig.canvas.mpl_disconnect(self._close_handler)
-            plt.close(self.fig)
-
-    def _initial_plot(self):
-        logger.debug("PlotWatcher: Creating initial plot.")
-        self.data = self.plotting_code.call("load_data")
-        self.data = self.plotting_code.call("postprocess", self.data)
-
-        self.plotting_code.call("settings", plt)
-        self.new_figure()
-        self.fig.clear()
-
-        self.interactive_elements = self.plotting_code.call(
-            "make_figure", self.fig, self.data
-        )
-        plt.draw()
-
-    def _refresh(self):
-        if self.plotting_code.file_has_changed():
+    def refresh(self):
+        if self.plt_module.should_reload():
             logger.debug("PlotWatcher: Refresh: plotting code has changed.")
-            _except_exec(self.plotting_code.load_module)
+            try:
+                self.plt_module.load_module()
+            except ImportError:
+                logger.exception(error_thing_failed("Reloading the module"))
+                return
 
-            needs_redraw = False
-            needs_postprocess = False
-            if self.plotting_code.func_has_changed("load_data"):
+            has_changed = self.plt_module.func_has_changed
+            should_load_data = has_changed("load_data")
+            should_postprocess = should_load_data or has_changed("postprocess")
+            should_settings = has_changed("settings")
+            should_make_figure = (
+                should_load_data
+                or should_postprocess
+                or should_settings
+                or self.plt_module.func_has_changed("make_figure")
+            )
+
+            if should_load_data:
                 logger.debug("PlotWatcher: load_data has changed.")
-                self.data = self.plotting_code.call("load_data")
-                needs_redraw = True
-                needs_postprocess = True
-                logger.info("Reloaded load_data")
+                try:
+                    self.data = wrap_execution_error(self.plt_module.call, "load_data")
+                    logger.info("Reloaded load_data")
+                except ModuleExecutionError:
+                    logger.exception(error_thing_failed("load_data"))
+                    return
 
-            if needs_postprocess or self.plotting_code.func_has_changed("postprocess"):
+            if should_postprocess:
                 logger.debug("PlotWatcher: postprocess has changed.")
-                self.data = self.plotting_code.call("postprocess", self.data)
-                needs_redraw = True
-                logger.info("Reloaded postprocess")
+                try:
+                    self.data = wrap_execution_error(
+                        self.plt_module.call, "postprocess", self.data
+                    )
+                    logger.info("Reloaded postprocess")
+                except ModuleExecutionError:
+                    logger.exception(error_thing_failed("postprocess"))
+                    return
 
-            if self.plotting_code.func_has_changed("settings"):
+            if should_settings:
                 logger.debug("PlotWatcher: settings has changed.")
-                self.plotting_code.call("settings", plt)
-                self.close_without_exit()
-                self.new_figure()
-                needs_redraw = True
-                logger.info("Reloaded settings")
 
-            if needs_redraw or self.plotting_code.func_has_changed("make_figure"):
+                try:
+                    wrap_execution_error(
+                        self.plt_module.call, "settings", self.plt_interface.plt
+                    )
+                    self.plt_interface.close_without_exit()
+                    self.plt_interface.new_figure()
+                    logger.info("Reloaded settings")
+                except ModuleExecutionError:
+                    logger.exception(error_thing_failed("settings"))
+                    return
+
+            if should_make_figure:
                 logger.debug("PlotWatcher: needs to redraw.")
-                self.fig.clear()
-                self.interactive_elements = self.plotting_code.call(
-                    "make_figure", self.fig, self.data
-                )
-                plt.draw()
-                logger.info("Reloaded make_figure")
-
-    def refresh_loop(self):
-        while True:
-            self._refresh()
-            plt.pause(2)
+                try:
+                    self.plt_interface.clear()
+                    self.interactive_elements = wrap_execution_error(
+                        self.plt_module.call,
+                        "make_figure",
+                        self.plt_interface.fig,
+                        self.data,
+                    )
+                    self.plt_interface.draw()
+                    logger.info("Reloaded make_figure")
+                except ModuleExecutionError:
+                    logger.exception(error_thing_failed("make_figure"))
+                    return

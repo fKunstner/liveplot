@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from liveplot.module_loader import ModuleLoader
@@ -34,11 +36,14 @@ def test_can_detect_file_change(make_module):
     loader = ModuleLoader(filepath, patch_if_missing={"f": lambda x: x})
     loader.load_module()
 
-    assert not loader.file_has_changed()
+    assert not loader.should_reload()
 
+    # Sleep before edit to make sure we don't end up saving at the same timestamp,
+    # leading to the change not being detected.
+    time.sleep(0.1)
     make_module("def f(x): return x+x", filepath=filepath)
 
-    assert loader.file_has_changed()
+    assert loader.should_reload()
 
 
 def test_can_detect_function_change(make_module):
@@ -53,16 +58,3 @@ def test_can_detect_function_change(make_module):
     loader.load_module()
 
     assert loader.func_has_changed("f")
-
-
-def test_errors_if_ask_for_change_on_never_exec_func(make_module):
-    filepath = make_module("")
-
-    loader = ModuleLoader(filepath, patch_if_missing={"f": lambda x: x})
-    loader.load_module()
-
-    make_module("def f(x): return x+x", filepath=filepath)
-    loader.load_module()
-
-    with pytest.raises(ValueError):
-        loader.func_has_changed("f")

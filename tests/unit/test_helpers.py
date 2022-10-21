@@ -4,16 +4,9 @@ from pathlib import Path
 import pytest
 
 # noinspection PyProtectedMember
-from liveplot.module_loader import _except_exec, _import_module
+from liveplot.module_loader import _import_module
 
 # pylint: disable=missing-docstring
-
-
-def test_except_exec_doesnt_trigger_exception():
-    def raise_exception():
-        raise NotImplementedError
-
-    _except_exec(raise_exception)
 
 
 def test_import_empty_module(make_module):

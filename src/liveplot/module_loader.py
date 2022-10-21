@@ -52,21 +52,20 @@ def _import_module(file_path: Path):
     return module
 
 
-def _except_exec(func, *args, **kwargs):
-    """Log any exception thrown by func (except Interrupts and SystemExit).
+class ModuleExecutionError(Exception):
+    """Base class to wrap exceptions occuring in module code."""
 
-    Returns the value of func(*args, **kwargs) if successful, None otherwise.
-    """
-    # noinspection PyBroadException
+
+def wrap_execution_error(func, *args, **kwargs):
+    """Wrap exceptions from ``func(*args, **kwargs)`` before raising."""
     try:
         return func(*args, **kwargs)
-    except Exception:
-        logger.exception(
+    except Exception as exc:
+        raise ModuleExecutionError(
             f"Code triggered an exception. "
             f"Will try to recover. "
             f"Initial error in {func.__name__}: {func}."
-        )
-        return None
+        ) from exc
 
 
 def _file_modified_date(file_path):
@@ -95,7 +94,7 @@ class ModuleLoader:
         self._patch_if_missing = patch_if_missing
         self._functions_source_last_exec: Dict[str, Any] = {}
         self._module = None
-        self._loast_load = None
+        self._last_load_attempt = None
 
     def load_module(self) -> None:
         """Load (or reload) the module.
@@ -105,8 +104,8 @@ class ModuleLoader:
         """
         logger.debug(f"Loading module at {self._file_path}.")
 
+        self._last_load_attempt = _file_modified_date(self._file_path)
         self._module = _import_module(self._file_path)
-        self._loast_load = _except_exec(_file_modified_date, self._file_path)
 
         if self._patch_if_missing is not None:
             self._module = self._patch_missing_functions(
@@ -127,7 +126,7 @@ class ModuleLoader:
         return module
 
     def _save_function_source(self, f_name: str):
-        source = _except_exec(inspect.getsource, getattr(self._module, f_name))
+        source = inspect.getsource(getattr(self._module, f_name))
         self._functions_source_last_exec[f_name] = source
 
     def func_has_changed(self, f_name: str) -> bool:
@@ -138,13 +137,9 @@ class ModuleLoader:
         Raises:
             ValueError if the function has never been called.
         """
-        source = _except_exec(inspect.getsource, getattr(self._module, f_name))
-        if f_name not in self._functions_source_last_exec:
-            raise ValueError(
-                f"Asked if function '{f_name}' has changed "
-                f"but '{f_name}' was never executed."
-            )
-        return self._functions_source_last_exec[f_name] != source
+        never_executed = f_name not in self._functions_source_last_exec
+        source = inspect.getsource(getattr(self._module, f_name))
+        return never_executed or self._functions_source_last_exec[f_name] != source
 
     def call(self, f_name: str, *args, **kwargs) -> Any:
         """Call the function ``f_name`` and passes it all other arguments.
@@ -154,11 +149,13 @@ class ModuleLoader:
         """
         logger.debug(f"Executing function {f_name}.")
         self._save_function_source(f_name)
-        return _except_exec(getattr(self._module, f_name), *args, **kwargs)
+        return wrap_execution_error(getattr(self._module, f_name), *args, **kwargs)
 
-    def file_has_changed(self) -> bool:
+    def should_reload(self) -> bool:
         """Whether the file has changed on disk since its last load.
 
         Compares the last load time with the file's last modified (``st_mtime``).
         """
-        return self._loast_load != _except_exec(_file_modified_date, self._file_path)
+        never_loaded = self._last_load_attempt is None
+        updated = self._last_load_attempt != _file_modified_date(self._file_path)
+        return never_loaded or updated

@@ -1,6 +1,7 @@
 import os
 import string
 import tempfile
+import time
 from pathlib import Path
 from random import choices
 from typing import Optional
@@ -14,10 +15,11 @@ def tmp_dir():
         yield tmpdirname
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def make_module(tmp_dir):  # pylint: disable=redefined-outer-name
     def _make_module(module_code, filepath: Optional[Path] = None):
-        """Writes a module with given filename in directory and returns its path.
+        """Writes a module with given filename in directory and returns its
+        path.
 
         filename is random if not specified.
         """
