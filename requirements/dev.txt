@@ -1,9 +1,10 @@
-# linting
+# lint and format
 black
 isort
 pylint
 mypy
-# testing
+docformatter
+# test
 pytest
 pytest-cov
 # ci

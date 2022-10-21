@@ -1,6 +1,9 @@
+"""Mocked test for the flow of operations of the plot watcher."""
 from unittest.mock import ANY, Mock, call
 
 from liveplot.plot_watcher import PlotWatcher
+
+# pylint: disable=missing-docstring
 
 
 def test_loading():

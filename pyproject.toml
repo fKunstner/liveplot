@@ -10,7 +10,7 @@ authors = [
     { name = "Frederik Kunstner", email = "frederik.kunstner@gmail.com" },
 ]
 description = "A utility to update matplotlib plots live on save"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Python :: 3",

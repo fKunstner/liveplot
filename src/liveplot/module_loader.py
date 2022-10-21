@@ -29,7 +29,7 @@ def _import_module(file_path: Path):
             f"File {file_path} not found when trying to load module."
         )
 
-    spec = spec_from_file_location("module.name", file_path)
+    spec = spec_from_file_location("UserPlottingCode", file_path)
 
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not import module in file path '{file_path}'.")
@@ -53,19 +53,7 @@ def _import_module(file_path: Path):
 
 
 class ModuleExecutionError(Exception):
-    """Base class to wrap exceptions occuring in module code."""
-
-
-def wrap_execution_error(func, *args, **kwargs):
-    """Wrap exceptions from ``func(*args, **kwargs)`` before raising."""
-    try:
-        return func(*args, **kwargs)
-    except Exception as exc:
-        raise ModuleExecutionError(
-            f"Code triggered an exception. "
-            f"Will try to recover. "
-            f"Initial error in {func.__name__}: {func}."
-        ) from exc
+    """Base class to wrap exceptions occurring in module code."""
 
 
 def _file_modified_date(file_path):
@@ -140,9 +128,6 @@ class ModuleLoader:
         """Check if the function has changed since its last call.
 
         Compares the source when last called to the source in memory.
-
-        Raises:
-            ValueError if the function has never been called.
         """
         never_executed = f_name not in self._functions_source_last_exec
         source = inspect.getsource(getattr(self._module, f_name))
@@ -153,10 +138,29 @@ class ModuleLoader:
 
         Saves the function source for future comparison in
         :func:`~CodeLoader.func_has_changed`.
+
+        Raises:
         """
         logger.debug(f"Executing function {f_name}.")
         self._save_function_source(f_name)
-        return wrap_execution_error(getattr(self._module, f_name), *args, **kwargs)
+
+        if self._module is None:
+            raise ValueError(f"Module in {self._file_path} was not loaded.")
+        if not hasattr(self._module, f_name):
+            raise ValueError(
+                f"Function {f_name} not found "
+                f"in module {self._module.__name__}({self._file_path})."
+            )
+
+        func = getattr(self._module, f_name)
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            raise ModuleExecutionError(
+                f"Code triggered an exception in "
+                f"{self._module.__name__}({self._file_path}).{func.__name__}. "
+                f"Will try to recover. "
+            ) from exc
 
     def should_reload(self) -> bool:
         """Whether the file has changed on disk since its last load.
