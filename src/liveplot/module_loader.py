@@ -119,10 +119,17 @@ class ModuleLoader:
             if not hasattr(module, f_name):
                 setattr(module, f_name, func)
                 patched.append(f_name)
-        logger.info(
-            f"The functions {patched} were not found "
-            f"and have been patched with default behavior."
-        )
+
+        if len(patched) > 0:
+            logger.info(
+                (
+                    f"The functions {patched} were "
+                    if len(patched) > 1
+                    else f"The function {patched[0]} was "
+                )
+                + "not found. Patched with default behavior."
+            )
+
         return module
 
     def _save_function_source(self, f_name: str):

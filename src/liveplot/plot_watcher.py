@@ -33,7 +33,7 @@ class PlotWatcher:
 
         # noinspection PyUnusedLocal
         def dummy_postprocess(data):
-            return None
+            return data
 
         # noinspection PyUnusedLocal
         def dummy_make_figure(fig, data):

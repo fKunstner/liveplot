@@ -44,7 +44,7 @@ profile = "black"
 wrap-descriptions = 81
 
 [tool.pylint.messages_control]
-disable = "W1203"
+disable = "W1203, W1201"
 
 
 [tool.pylint.format]
