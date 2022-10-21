@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 name = "liveplot"
 version = "0.1.0"
 authors = [
-  { name="Frederik Kunstner", email="frederik.kunstner@gmail.com" },
+    { name = "Frederik Kunstner", email = "frederik.kunstner@gmail.com" },
 ]
 description = "A utility to update matplotlib plots live on save"
 readme = "README.md"
@@ -20,9 +20,9 @@ classifiers = [
     "Framework :: Matplotlib"
 ]
 dependencies = [
-  "matplotlib",
-  "numpy",
-  "typing_extensions",
+    "matplotlib",
+    "numpy",
+    "typing_extensions",
 ]
 
 
@@ -38,6 +38,13 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
+
+
+[tool.docformatter]
+wrap-descriptions = 81
+
+[tool.pylint.messages_control]
+disable = "W1203"
 
 
 [tool.pylint.format]

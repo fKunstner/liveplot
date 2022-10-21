@@ -6,7 +6,7 @@ from typing import Callable, Optional
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
-from liveplot.code_loader import CodeLoader, except_exec
+from liveplot.code_loader import CodeLoader, _except_exec
 
 logger = logging.getLogger("liveplot")
 
@@ -65,7 +65,7 @@ class PlotWatcher:
     def _refresh(self):
         if self.plotting_code.file_has_changed():
             logger.debug("PlotWatcher: Refresh: plotting code has changed.")
-            except_exec(self.plotting_code.load_module)
+            _except_exec(self.plotting_code.load_module)
 
             needs_redraw = False
             needs_postprocess = False
