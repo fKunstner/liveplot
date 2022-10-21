@@ -6,7 +6,7 @@ from typing import Callable, Optional
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
-from liveplot.code_loader import CodeLoader, _except_exec
+from liveplot.module_loader import ModuleLoader, _except_exec
 
 logger = logging.getLogger("liveplot")
 
@@ -16,7 +16,7 @@ class PlotWatcher:
         logger.debug(f"Creating PlotWatcher for {file_path}.")
 
         self.file_path: Path = file_path
-        self.plotting_code: CodeLoader = CodeLoader(
+        self.plotting_code: ModuleLoader = ModuleLoader(
             self.file_path,
             patch_if_missing={
                 "load_data": lambda: None,

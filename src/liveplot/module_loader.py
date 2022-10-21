@@ -73,24 +73,23 @@ def _file_modified_date(file_path):
     return file_path.stat().st_mtime
 
 
-class CodeLoader:
-    """Wrap a module and reloads it on demand."""
+class ModuleLoader:
+    """Wrap a module to reload it on demand.
+
+    If ``patch_if_missing`` is given, patches the functions (keys, strings)
+    with the given dummy implementation (value, Callable).
+
+    Args:
+        file_path: The module file path to load
+        patch_if_missing: A list of function names and dummy callables
+            to patch if missing.
+    """
 
     def __init__(
         self,
         file_path: Path,
         patch_if_missing: Optional[Dict[str, Callable]] = None,
     ):
-        """Wrap a module and reloads it on demand.
-
-        If ``patch_if_missing`` is given, patches the functions (keys, strings)
-        with the given dummy implementation (value, Callable).
-
-        Args:
-            file_path: The module file path to load
-            patch_if_missing: A list of function names and dummy callables
-                to patch if missing.
-        """
         logger.debug(f"Creating CodeLoader for {file_path}.")
         self._file_path: Path = file_path
         self._patch_if_missing = patch_if_missing
@@ -99,7 +98,11 @@ class CodeLoader:
         self._loast_load = None
 
     def load_module(self) -> None:
-        """Load (or reload) the module."""
+        """Load (or reload) the module.
+
+        Raises:
+            ImportError if the module could not be reloaded.
+        """
         logger.debug(f"Loading module at {self._file_path}.")
 
         self._module = _import_module(self._file_path)
@@ -128,15 +131,12 @@ class CodeLoader:
         self._functions_source_last_exec[f_name] = source
 
     def func_has_changed(self, f_name: str) -> bool:
-        """Check if a function has changed since its last call.
+        """Check if the function has changed since its last call.
 
-        Compares the source of the function when it was last called
-        and the source of the function in the module in memory.
-
-        Call ``load_module`` to reload from disk.
+        Compares the source when last called to the source in memory.
 
         Raises:
-            ValueError if the function ``f_name`` has never been called.
+            ValueError if the function has never been called.
         """
         source = _except_exec(inspect.getsource, getattr(self._module, f_name))
         if f_name not in self._functions_source_last_exec:
@@ -149,7 +149,8 @@ class CodeLoader:
     def call(self, f_name: str, *args, **kwargs) -> Any:
         """Call the function ``f_name`` and passes it all other arguments.
 
-        Saves the function source for future comparison in ``func_has_changed``.
+        Saves the function source for future comparison in
+        :func:`~CodeLoader.func_has_changed`.
         """
         logger.debug(f"Executing function {f_name}.")
         self._save_function_source(f_name)
@@ -158,6 +159,6 @@ class CodeLoader:
     def file_has_changed(self) -> bool:
         """Whether the file has changed on disk since its last load.
 
-        Compares the last load time with ``st_mtime`` (last modified time).
+        Compares the last load time with the file's last modified (``st_mtime``).
         """
         return self._loast_load != _except_exec(_file_modified_date, self._file_path)

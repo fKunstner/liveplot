@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 # noinspection PyProtectedMember
-from liveplot.code_loader import _except_exec, _import_module
+from liveplot.module_loader import _except_exec, _import_module
 
 # pylint: disable=missing-docstring
 
