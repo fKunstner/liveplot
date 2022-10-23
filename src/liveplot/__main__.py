@@ -14,7 +14,10 @@ def quick_guide():
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run a plotting script and update the plot when the script changes"
+        description="Update a Matplotlib pyplot figure on save, "
+        "without having to re-run a script or reload data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=quick_guide(),
     )
     parser.add_argument(
         "file_path",
@@ -24,16 +27,12 @@ def parse_args() -> argparse.Namespace:
         help="The plotting file to update on change",
     )
     parser.add_argument(
-        "--debug", action="store_true", default=False, help="Enable debug logs."
+        "--debug", action="store_true", default=False, help="Enable debug logs"
     )
     cli_args = parser.parse_args()
 
     if cli_args.file_path is None:
         parser.print_help()
-        print()
-        print("---------------------")
-        print()
-        print(quick_guide())
         sys.exit()
 
     if not cli_args.file_path.is_file():
