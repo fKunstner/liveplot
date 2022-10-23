@@ -12,22 +12,18 @@ class PltInterface:
         self._close_handler = None
         self.plt = plt
         self.show = show
-        if not self.show:
-            plt.ioff()
 
     def new_figure(self):
         """Create a new figure that exits the program when closed."""
+        if self.fig is not None:
+            self.fig.canvas.mpl_disconnect(self._close_handler)
+            plt.close(self.fig)
+
         self.fig = plt.figure()
         self._close_handler: Optional[Callable] = self.fig.canvas.mpl_connect(
             "close_event", lambda event: sys.exit()
         )
         self.show_or_save()
-
-    def close_without_exit(self):
-        """Close the figure without exiting the program."""
-        if self.fig is not None:
-            self.fig.canvas.mpl_disconnect(self._close_handler)
-            plt.close(self.fig)
 
     def clear(self):
         self.fig.clear()

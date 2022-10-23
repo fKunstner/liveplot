@@ -39,6 +39,24 @@ possible_patches = {
 }
 
 
+def _patch_missing_functions(module):
+    patched = []
+    for f_name, func in possible_patches.items():
+        if not hasattr(module, f_name):
+            setattr(module, f_name, func)
+            patched.append(f_name)
+
+    if len(patched) > 0:
+        message = (
+            f"The functions {patched} were "
+            if len(patched) > 1
+            else f"The function {patched} was "
+        )
+        logger.info(message + "not found and patched with default behavior")
+
+    return module
+
+
 def _import_module(file_path: Path):
     """Import a module by filepath.
 
@@ -53,7 +71,7 @@ def _import_module(file_path: Path):
         including if the filepath
         does not exist
     """
-    logger.debug("Importing module.")
+    logger.debug("Importing module")
 
     if not file_path.is_file():
         raise FileNotFoundError(
@@ -63,24 +81,23 @@ def _import_module(file_path: Path):
     spec = spec_from_file_location("module.name", file_path)
 
     if spec is None or spec.loader is None:
-        raise ImportError(f"Could not import module in file path '{file_path}'.")
+        raise ImportError(f"Could not import module in file path '{file_path}'")
 
     module = module_from_spec(spec)
 
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
-        raise ImportError(f"Could not import module in file '{file_path}'.") from exc
+        raise ImportError(f"Could not import module in file '{file_path}'") from exc
 
     return module
 
 
-class UserModuleError(Exception):
+class PlottingModuleError(Exception):
     """Base class to wrap exceptions occuring in module code."""
 
-
-def _file_modified_date(file_path: Path):
-    return file_path.stat().st_mtime
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class ModuleLoader:
@@ -97,11 +114,11 @@ class ModuleLoader:
         self,
         file_path: Path,
     ):
-        logger.debug(f"Creating CodeLoader for {file_path}.")
+        logger.debug(f"Creating CodeLoader for {file_path}")
         self._file_path: Path = file_path
         self._functions_source_last_exec: Dict[str, Any] = {}
         self._module = None
-        self._last_load_attempt = None
+        self._last_load_attempt: Optional[float] = None
 
     def load_module(self) -> None:
         """Load (or reload) the module.
@@ -109,31 +126,10 @@ class ModuleLoader:
         Raises:
             ImportError if the module could not be reloaded.
         """
-        logger.debug(f"Loading module at {self._file_path}.")
-        self._last_load_attempt = _file_modified_date(self._file_path)
+        logger.debug(f"Loading module at {self._file_path}")
+        self._last_load_attempt = self._file_path.stat().st_mtime
         self._module = _import_module(self._file_path)
-        self._module = self._patch_missing_functions(self._module)
-
-    @staticmethod
-    def _patch_missing_functions(module):
-        to_patch = {k: v for k, v in possible_patches.items() if not hasattr(module, k)}
-
-        if len(to_patch) > 0:
-            for f_name, func in to_patch.items():
-                if not hasattr(module, f_name):
-                    setattr(module, f_name, func)
-
-            patched = list(to_patch.keys())
-            logger.info(
-                (
-                    f"The functions {patched} were "
-                    if len(patched) > 1
-                    else f"The function {patched} was "
-                )
-                + "not found. Patched with default behavior."
-            )
-
-        return module
+        self._module = _patch_missing_functions(self._module)
 
     def _save_function_source(self, f_name: str):
         source = inspect.getsource(getattr(self._module, f_name))
@@ -157,16 +153,14 @@ class ModuleLoader:
         Saves the function source for future comparison in
         :func:`~CodeLoader.func_has_changed`.
         """
-        logger.debug(f"Executing function {f_name}.")
+        logger.debug(f"Executing function {f_name}")
         self._save_function_source(f_name)
         func = getattr(self._module, f_name)
         try:
             return func(*args, **kwargs)
         except Exception as exc:
-            raise UserModuleError(
-                f"Code triggered an exception. "
-                f"Will try to recover. "
-                f"Initial error in {func.__name__}: {func}."
+            raise PlottingModuleError(
+                f"Plotting triggered an exception in `{f_name}`, trying to recover"
             ) from exc
 
     def should_reload(self) -> bool:
@@ -176,5 +170,5 @@ class ModuleLoader:
         """
         return (
             self._last_load_attempt is None
-            or self._last_load_attempt < _file_modified_date(self._file_path)
+            or self._last_load_attempt < self._file_path.stat().st_mtime
         )
