@@ -1,15 +1,40 @@
 import argparse
+import importlib.resources
 import logging
 import pathlib
+import sys
 
 from liveplot.plot_watcher import PlotWatcher
 
 
+def quick_guide():
+    with importlib.resources.path("liveplot", "quick_guide.md") as data_path:
+        return data_path.read_text()
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Live plot updater")
-    parser.add_argument("file_path", type=pathlib.Path)
-    parser.add_argument("--debug", action="store_true", default=False)
+    parser = argparse.ArgumentParser(
+        description="Run a plotting script and update the plot when the script changes"
+    )
+    parser.add_argument(
+        "file_path",
+        nargs="?",
+        type=pathlib.Path,
+        default=None,
+        help="The plotting file to update on change",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", default=False, help="Enable debug logs."
+    )
     cli_args = parser.parse_args()
+
+    if cli_args.file_path is None:
+        parser.print_help()
+        print()
+        print("---------------------")
+        print()
+        print(quick_guide())
+        sys.exit()
 
     if not cli_args.file_path.is_file():
         raise FileNotFoundError(f"{cli_args.file_path}")
@@ -31,7 +56,8 @@ def configure_logs(debug: bool = False):
     logger.addHandler(handler)
 
 
-def main(cli_args):
+def main():
+    cli_args = parse_args()
     configure_logs(cli_args.debug)
     figure_watcher = PlotWatcher.from_path(cli_args.file_path)
     while True:
@@ -40,4 +66,4 @@ def main(cli_args):
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    main()

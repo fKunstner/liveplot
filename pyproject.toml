@@ -2,7 +2,6 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-
 [project]
 name = "liveplot"
 version = "0.1.0"
@@ -26,10 +25,16 @@ dependencies = [
 ]
 
 
+[project.scripts]
+liveplot = "liveplot.__main__:main"
+
+
 [project.urls]
 "Homepage" = "https://github.com/fkunstner/liveplot"
 "Source" = "https://github.com/fkunstner/liveplot"
 "Bug Tracker" = "https://github.com/fKunstner/liveplot/issues"
+
+
 
 
 [tool.black]
