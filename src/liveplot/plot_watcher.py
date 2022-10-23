@@ -1,13 +1,8 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from liveplot.module_loader import (
-    ModuleExecutionError,
-    ModuleLoader,
-    wrap_execution_error,
-)
+from liveplot.module_loader import ModuleLoader, UserModuleError
 from liveplot.plt_interface import PltInterface
 
 logger = logging.getLogger("liveplot.plot_watcher")
@@ -25,38 +20,16 @@ class PlotWatcher:
         self.interactive_elements = None
 
     @staticmethod
-    def from_filepath(file_path: Path, plt_interface: Optional[PltInterface] = None):
+    def from_path(file_path: Path, plt_interface: Optional[PltInterface] = None):
         logger.debug(f"Creating PlotWatcher for {file_path}.")
 
-        def dummy_load_data():
-            return None
-
-        # noinspection PyUnusedLocal
-        def dummy_postprocess(data):
-            return data
-
-        # noinspection PyUnusedLocal
-        def dummy_make_figure(fig, data):
-            return None
-
-        # noinspection PyUnusedLocal
-        def dummy_settings(plt):
-            return None
-
         return PlotWatcher(
-            ModuleLoader(
-                file_path,
-                patch_if_missing={
-                    "load_data": dummy_load_data,
-                    "postprocess": dummy_postprocess,
-                    "make_figure": dummy_make_figure,
-                    "settings": dummy_settings,
-                },
-            ),
+            ModuleLoader(file_path),
             plt_interface if plt_interface is not None else PltInterface(show=True),
         )
 
     def refresh(self):
+        logger.debug("Refreshing...")
         if self.plt_module.should_reload():
             logger.debug("PlotWatcher: Refresh: plotting code has changed.")
             try:
@@ -79,49 +52,43 @@ class PlotWatcher:
             if should_load_data:
                 logger.debug("PlotWatcher: load_data has changed.")
                 try:
-                    self.data = wrap_execution_error(self.plt_module.call, "load_data")
-                    logger.info("Reloaded load_data")
-                except ModuleExecutionError:
+                    self.data = self.plt_module.call("load_data")
+                except UserModuleError:
                     logger.exception(error_thing_failed("load_data"))
                     return
+                logger.info("Reloaded load_data")
 
             if should_postprocess:
                 logger.debug("PlotWatcher: postprocess has changed.")
                 try:
-                    self.data = wrap_execution_error(
-                        self.plt_module.call, "postprocess", self.data
-                    )
-                    logger.info("Reloaded postprocess")
-                except ModuleExecutionError:
+                    self.data = self.plt_module.call("postprocess", self.data)
+                except UserModuleError:
                     logger.exception(error_thing_failed("postprocess"))
                     return
+                logger.info("Reloaded postprocess")
 
             if should_settings:
                 logger.debug("PlotWatcher: settings has changed.")
-
                 try:
-                    wrap_execution_error(
-                        self.plt_module.call, "settings", self.plt_interface.plt
-                    )
-                    self.plt_interface.close_without_exit()
-                    self.plt_interface.new_figure()
-                    logger.info("Reloaded settings")
-                except ModuleExecutionError:
+                    self.plt_module.call("settings", self.plt_interface.plt)
+                except UserModuleError:
                     logger.exception(error_thing_failed("settings"))
                     return
+                self.plt_interface.close_without_exit()
+                self.plt_interface.new_figure()
+                logger.info("Reloaded settings")
 
             if should_make_figure:
                 logger.debug("PlotWatcher: needs to redraw.")
+                self.plt_interface.clear()
                 try:
-                    self.plt_interface.clear()
-                    self.interactive_elements = wrap_execution_error(
-                        self.plt_module.call,
-                        "make_figure",
-                        self.plt_interface.fig,
-                        self.data,
+                    self.interactive_elements = self.plt_module.call(
+                        "make_figure", self.plt_interface.fig, self.data
                     )
-                    self.plt_interface.draw()
-                    logger.info("Reloaded make_figure")
-                except ModuleExecutionError:
+                except UserModuleError:
                     logger.exception(error_thing_failed("make_figure"))
                     return
+                self.plt_interface.draw()
+                logger.info("Reloaded make_figure")
+        else:
+            logger.debug("Nothing to do, file has not changed...")

@@ -8,6 +8,37 @@ from typing import Any, Callable, Dict, Optional
 logger = logging.getLogger("liveplot.code_loader")
 
 
+# pylint: disable=missing-docstring
+def dummy_load_data():
+    return None
+
+
+# noinspection PyUnusedLocal
+# pylint: disable=missing-docstring
+def dummy_postprocess(data):
+    return data
+
+
+# noinspection PyUnusedLocal
+# pylint: disable=missing-docstring
+def dummy_make_figure(fig, data):
+    return None
+
+
+# noinspection PyUnusedLocal
+# pylint: disable=missing-docstring
+def dummy_settings(plt):
+    return None
+
+
+possible_patches = {
+    "load_data": dummy_load_data,
+    "postprocess": dummy_postprocess,
+    "settings": dummy_settings,
+    "make_figure": dummy_make_figure,
+}
+
+
 def _import_module(file_path: Path):
     """Import a module by filepath.
 
@@ -38,37 +69,17 @@ def _import_module(file_path: Path):
 
     try:
         spec.loader.exec_module(module)
-    except SyntaxError as exc:
-        raise ImportError(
-            f"Could not import module in file path '{file_path}' "
-            f"due to syntax error."
-        ) from exc
     except Exception as exc:
-        raise ImportError(
-            f"Could not import module in file path '{file_path}' "
-            f"due to an error on execution."
-        ) from exc
+        raise ImportError(f"Could not import module in file '{file_path}'.") from exc
 
     return module
 
 
-class ModuleExecutionError(Exception):
+class UserModuleError(Exception):
     """Base class to wrap exceptions occuring in module code."""
 
 
-def wrap_execution_error(func, *args, **kwargs):
-    """Wrap exceptions from ``func(*args, **kwargs)`` before raising."""
-    try:
-        return func(*args, **kwargs)
-    except Exception as exc:
-        raise ModuleExecutionError(
-            f"Code triggered an exception. "
-            f"Will try to recover. "
-            f"Initial error in {func.__name__}: {func}."
-        ) from exc
-
-
-def _file_modified_date(file_path):
+def _file_modified_date(file_path: Path):
     return file_path.stat().st_mtime
 
 
@@ -80,18 +91,14 @@ class ModuleLoader:
 
     Args:
         file_path: The module file path to load
-        patch_if_missing: A list of function names and dummy callables
-            to patch if missing.
     """
 
     def __init__(
         self,
         file_path: Path,
-        patch_if_missing: Optional[Dict[str, Callable]] = None,
     ):
         logger.debug(f"Creating CodeLoader for {file_path}.")
         self._file_path: Path = file_path
-        self._patch_if_missing = patch_if_missing
         self._functions_source_last_exec: Dict[str, Any] = {}
         self._module = None
         self._last_load_attempt = None
@@ -103,29 +110,25 @@ class ModuleLoader:
             ImportError if the module could not be reloaded.
         """
         logger.debug(f"Loading module at {self._file_path}.")
-
         self._last_load_attempt = _file_modified_date(self._file_path)
         self._module = _import_module(self._file_path)
-
-        if self._patch_if_missing is not None:
-            self._module = self._patch_missing_functions(
-                self._module, self._patch_if_missing
-            )
+        self._module = self._patch_missing_functions(self._module)
 
     @staticmethod
-    def _patch_missing_functions(module, patches: Dict[str, Callable]):
-        patched = []
-        for f_name, func in patches.items():
-            if not hasattr(module, f_name):
-                setattr(module, f_name, func)
-                patched.append(f_name)
+    def _patch_missing_functions(module):
+        to_patch = {k: v for k, v in possible_patches.items() if not hasattr(module, k)}
 
-        if len(patched) > 0:
+        if len(to_patch) > 0:
+            for f_name, func in to_patch.items():
+                if not hasattr(module, f_name):
+                    setattr(module, f_name, func)
+
+            patched = list(to_patch.keys())
             logger.info(
                 (
                     f"The functions {patched} were "
                     if len(patched) > 1
-                    else f"The function {patched[0]} was "
+                    else f"The function {patched} was "
                 )
                 + "not found. Patched with default behavior."
             )
@@ -156,13 +159,22 @@ class ModuleLoader:
         """
         logger.debug(f"Executing function {f_name}.")
         self._save_function_source(f_name)
-        return wrap_execution_error(getattr(self._module, f_name), *args, **kwargs)
+        func = getattr(self._module, f_name)
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            raise UserModuleError(
+                f"Code triggered an exception. "
+                f"Will try to recover. "
+                f"Initial error in {func.__name__}: {func}."
+            ) from exc
 
     def should_reload(self) -> bool:
         """Whether the file has changed on disk since its last load.
 
         Compares the last load time with the file's last modified (``st_mtime``).
         """
-        never_loaded = self._last_load_attempt is None
-        updated = self._last_load_attempt != _file_modified_date(self._file_path)
-        return never_loaded or updated
+        return (
+            self._last_load_attempt is None
+            or self._last_load_attempt < _file_modified_date(self._file_path)
+        )

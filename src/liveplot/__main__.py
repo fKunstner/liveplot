@@ -33,7 +33,7 @@ def configure_logs(debug: bool = False):
 
 def main(cli_args):
     configure_logs(cli_args.debug)
-    figure_watcher = PlotWatcher.from_filepath(cli_args.file_path)
+    figure_watcher = PlotWatcher.from_path(cli_args.file_path)
     while True:
         figure_watcher.refresh()
         figure_watcher.plt_interface.pause(2)
