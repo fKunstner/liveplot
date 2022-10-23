@@ -1,3 +1,8 @@
+"""Wrapper for calls to pyplot.
+
+Only used by :class:`~PlotWatcher`, but kept as a separate class so it can be
+replaced by a dummy class during tests to check the logic without plotting.
+"""
 import sys
 from typing import Callable, Optional
 
@@ -7,11 +12,11 @@ from matplotlib import pyplot as plt
 class PltInterface:
     """Utility functions that have to do with pyplt."""
 
-    def __init__(self, show=True):
+    def __init__(self):
         self.fig = None
         self._close_handler = None
         self.plt = plt
-        self.show = show
+        self.show = True
 
     def new_figure(self):
         """Create a new figure that exits the program when closed."""

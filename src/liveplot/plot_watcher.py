@@ -21,7 +21,7 @@ class PlotWatcher:
 
         return PlotWatcher(
             ModuleLoader(file_path),
-            plt_interface if plt_interface is not None else PltInterface(show=True),
+            plt_interface if plt_interface is not None else PltInterface(),
         )
 
     def _make_plot(self):

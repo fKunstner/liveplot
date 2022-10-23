@@ -14,10 +14,11 @@ def settings(plt):
 
 
 def make_figure(fig, data):
-    ax = fig.add_subplot(1, 1, 1)
+    axes = [
+        fig.add_subplot(111),
+    ]
 
 
 if __name__ == "__main__":
-    fig = plt.figure()
-    make_figure(fig, load_data())
+    make_figure(plt.figure(), load_data())
     plt.show()

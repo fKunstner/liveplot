@@ -1,5 +1,5 @@
-Calling `liveplot` on the code below will produce the same result as `python`, but the plot will
-update when the file changes. The data is saved and re-used if `load_data` does not change.
+Calling `liveplot` on the code below will produce the same result as calling the script, 
+but the plot will update when the file changes. The data is saved and re-used if `load_data` does not change.
 
     import matplotlib.pyplot as plt 
     

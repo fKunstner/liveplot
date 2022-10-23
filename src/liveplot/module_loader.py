@@ -3,7 +3,7 @@ import inspect
 import logging
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger("liveplot.code_loader")
 
@@ -14,19 +14,19 @@ def dummy_load_data():
 
 
 # noinspection PyUnusedLocal
-# pylint: disable=missing-docstring
+# pylint: disable=missing-docstring,unused-argument
 def dummy_postprocess(data):
     return data
 
 
 # noinspection PyUnusedLocal
-# pylint: disable=missing-docstring
+# pylint: disable=missing-docstring,unused-argument
 def dummy_make_figure(fig, data):
     return None
 
 
 # noinspection PyUnusedLocal
-# pylint: disable=missing-docstring
+# pylint: disable=missing-docstring,unused-argument
 def dummy_settings(plt):
     return None
 
@@ -78,10 +78,13 @@ def _import_module(file_path: Path):
             f"File {file_path} not found when trying to load module."
         )
 
-    spec = spec_from_file_location("module.name", file_path)
+    spec = spec_from_file_location(f"UserPlottingCode.{file_path.stem}", file_path)
 
     if spec is None or spec.loader is None:
-        raise ImportError(f"Could not import module in file path '{file_path}'")
+        raise ImportError(
+            f"Could not import module in file path '{file_path}'"
+            f"but unclear what could go wrong to trigger this"
+        )
 
     module = module_from_spec(spec)
 

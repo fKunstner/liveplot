@@ -9,7 +9,7 @@ from liveplot.plot_watcher import PlotWatcher
 
 def quick_guide():
     with importlib.resources.path("liveplot", "quick_guide.md") as data_path:
-        return data_path.read_text()
+        return data_path.read_text(encoding="utf8")
 
 
 def create_template(filepath: Path):
@@ -17,14 +17,16 @@ def create_template(filepath: Path):
         print(f"File {filepath} already exists")
     else:
         with importlib.resources.path("liveplot", "template.py") as template:
-            with open(filepath, "w", encoding="utf8") as fh:
-                fh.write(template.read_text(encoding="utf8"))
+            with open(filepath, "w", encoding="utf8") as f:
+                f.write(template.read_text(encoding="utf8"))
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Update a Matplotlib pyplot figure on save, "
-        "without having to re-run a script or reload data",
+        description=(
+            "Update a Matplotlib pyplot figure on save, "
+            "without having to re-run a script or reload data"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=quick_guide(),
     )
@@ -46,7 +48,10 @@ def parse_args() -> argparse.Namespace:
         const=Path("new_plot.py"),
         default=None,
         type=Path,
-        help="Create a new plotting script with basic functions in filename (defaults to new_liveplot.py)",
+        help=(
+            "Create a plotting script template "
+            "in filename (defaults to new_liveplot.py)"
+        ),
     )
     cli_args = parser.parse_args()
 

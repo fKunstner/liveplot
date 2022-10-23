@@ -48,12 +48,17 @@ profile = "black"
 [tool.docformatter]
 wrap-descriptions = 81
 
+
+[tool.pylint]
+ignore-paths=["src/liveplot/template.py"]
+
 [tool.pylint.messages_control]
 disable = "W1203, W1201, C0303"
-
+docstring-min-length=2
 
 [tool.pylint.format]
 max-line-length = "88"
+good-names=["f"]
 
 
 [tool.pytest.ini_options]
@@ -65,7 +70,6 @@ testpaths = ["tests"]
 mypy_path = "src"
 no_implicit_optional = true
 strict_equality = true
-
 
 [[tool.mypy.overrides]]
 module = [
