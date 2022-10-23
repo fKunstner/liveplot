@@ -1,8 +1,8 @@
 import argparse
 import importlib.resources
 import logging
-import pathlib
 import sys
+from pathlib import Path
 
 from liveplot.plot_watcher import PlotWatcher
 
@@ -10,6 +10,15 @@ from liveplot.plot_watcher import PlotWatcher
 def quick_guide():
     with importlib.resources.path("liveplot", "quick_guide.md") as data_path:
         return data_path.read_text()
+
+
+def create_template(filepath: Path):
+    if filepath.exists():
+        print(f"File {filepath} already exists")
+    else:
+        with importlib.resources.path("liveplot", "template.py") as template:
+            with open(filepath, "w", encoding="utf8") as fh:
+                fh.write(template.read_text(encoding="utf8"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,17 +31,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "file_path",
         nargs="?",
-        type=pathlib.Path,
+        type=Path,
         default=None,
         help="The plotting file to update on change",
     )
     parser.add_argument(
         "--debug", action="store_true", default=False, help="Enable debug logs"
     )
+    parser.add_argument(
+        "--new",
+        metavar="filename",
+        action="store",
+        nargs="?",
+        const=Path("new_plot.py"),
+        default=None,
+        type=Path,
+        help="Create a new plotting script with basic functions in filename (defaults to new_liveplot.py)",
+    )
     cli_args = parser.parse_args()
 
     if cli_args.file_path is None:
-        parser.print_help()
+        if cli_args.new is not None:
+            create_template(cli_args.new)
+        else:
+            parser.print_help()
         sys.exit()
 
     if not cli_args.file_path.is_file():
