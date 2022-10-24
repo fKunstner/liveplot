@@ -1,12 +1,11 @@
+import itertools
 import os
 import string
 import tempfile
-import time
 from collections import namedtuple
 from pathlib import Path
 from random import choices
 from typing import Optional
-from unittest.mock import patch
 
 import pytest
 
@@ -17,19 +16,14 @@ def tmp_dir():
         yield tmpdirname
 
 
-MockStat = namedtuple("MockStat", "st_mtime st_mode")
-
-
-mocked_stat_increment = 0
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_stat():
+    MockStat = namedtuple("MockStat", "st_mtime st_mode")
+    counter = itertools.count(start=1, step=1)
+
     def _mock_stat(filepath):
-        global mocked_stat_increment
-        mocked_stat_increment += 1
         return MockStat(
-            st_mtime=filepath.stat().st_mtime + mocked_stat_increment,
+            st_mtime=filepath.stat().st_mtime + next(counter),
             st_mode=filepath.stat().st_mode,
         )
 
