@@ -26,7 +26,7 @@ dependencies = [
 
 
 [project.scripts]
-liveplot = "liveplot.__main__:main"
+liveplot = "liveplot.cli:main"
 
 
 [project.urls]
@@ -50,15 +50,15 @@ wrap-descriptions = 81
 
 
 [tool.pylint]
-ignore-paths=["src/liveplot/template.py"]
+ignore-paths = ["src/liveplot/template.py"]
 
 [tool.pylint.messages_control]
 disable = "W1203, W1201, C0303"
-docstring-min-length=2
+docstring-min-length = 2
 
 [tool.pylint.format]
 max-line-length = "88"
-good-names=["f"]
+good-names = ["f"]
 
 
 [tool.pytest.ini_options]

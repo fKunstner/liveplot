@@ -8,7 +8,8 @@
 help:
 	@echo "test           Run pytest"
 	@echo "format         Run formatting tools"
-	@echo "check          Run linters and codecheckers (no edits)"
+	@echo "check          Run style and type checkers (no edits)"
+	@echo "lint           Run pylint"
 
 test:
 	@pytest -vx tests --cov-report html:cov_html
@@ -29,5 +30,7 @@ check:
 	@echo "mypy"
 	@mypy src
 	@mypy tests
+
+lint:
 	@echo "Pylint"
 	@pylint src

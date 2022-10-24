@@ -49,7 +49,7 @@ def test_can_detect_function_change(make_module, mock_stat):
         assert loader.func_has_changed("postprocess")
 
 
-def test_bad_user_function_raises_exception(make_module, mock_stat):
+def test_bad_user_function_raises_exception(make_module):
     filepath = make_module(
         textwrap.dedent(
             """

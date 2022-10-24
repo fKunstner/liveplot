@@ -4,12 +4,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from liveplot.__main__ import configure_logs
+from liveplot.cli import configure_logs
 from liveplot.plot_watcher import PlotWatcher
-from liveplot.plt_interface import PltInterface
 
 
-def test_loading(make_module, mock_stat):
+def test_loading(make_module):
     filepath = make_module(
         textwrap.dedent(
             """
@@ -67,7 +66,7 @@ def test_syntax_error_after_first_load_no_crash(
         assert check_func(watcher)
 
 
-def test_logging_invalid_syntax_on_load(make_module, mock_stat, caplog):
+def test_logging_invalid_syntax_on_load(make_module, caplog):
     configure_logs()
 
     filepath = make_module("def f() False")
