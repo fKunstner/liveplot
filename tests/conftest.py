@@ -11,6 +11,12 @@ import pytest
 
 
 @pytest.fixture(scope="session")
+def session_tmp_dir():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        yield tmpdirname
+
+
+@pytest.fixture(scope="function")
 def tmp_dir():
     with tempfile.TemporaryDirectory() as tmpdirname:
         yield tmpdirname
@@ -31,7 +37,7 @@ def mock_stat():
 
 
 @pytest.fixture(scope="session")
-def make_module(tmp_dir):  # pylint: disable=redefined-outer-name
+def make_module(session_tmp_dir):  # pylint: disable=redefined-outer-name
     def _make_module(module_code, filepath: Optional[Path] = None) -> Path:
         """Write the module code to a file and return the Path.
 
@@ -43,7 +49,7 @@ def make_module(tmp_dir):  # pylint: disable=redefined-outer-name
         """
         if filepath is None:
             filename = "".join(choices(string.ascii_uppercase, k=10)) + ".py"
-            filepath = Path(os.path.join(tmp_dir, filename))
+            filepath = Path(os.path.join(session_tmp_dir, filename))
 
         with open(filepath, "w", encoding="utf8") as file_handler:
             file_handler.write(module_code)
