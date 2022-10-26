@@ -21,7 +21,7 @@ class PltInterface:
         """Create a new figure that exits the program when closed."""
         if self.fig is not None:
             self.fig.canvas.mpl_disconnect(self._close_handler)
-            plt.close(self.fig)
+            self.plt.close(self.fig)
 
         self.fig = plt.figure()
         self._close_handler: Optional[Callable] = self.fig.canvas.mpl_connect(

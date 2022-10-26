@@ -106,11 +106,9 @@ def launch_liveplot(filepath: Path):
 def main():
     parser = make_parser()
     cli_args = parser.parse_args()
-
     configure_logs(cli_args.debug)
 
     no_args = cli_args.new is False and cli_args.script is None
-
     if no_args:
         parser.print_help()
         sys.exit()
