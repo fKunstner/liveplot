@@ -13,6 +13,7 @@ class PlotWatcher:
         self.plt_module = plotting_module
         self.plt_interface = plotting_stuff
         self.data = None
+        self.data_post = None
         self.interactive_elements = None
 
     @staticmethod
@@ -40,7 +41,7 @@ class PlotWatcher:
 
         if should_postprocess:
             logger.debug("PlotWatcher: postprocess has changed")
-            self.data = self.plt_module.call("postprocess", self.data)
+            self.data_post = self.plt_module.call("postprocess", self.data)
             logger.info("Reloaded postprocess")
 
         if should_settings:
@@ -53,7 +54,7 @@ class PlotWatcher:
             logger.debug("PlotWatcher: needs to redraw")
             self.plt_interface.clear()
             self.interactive_elements = self.plt_module.call(
-                "make_figure", self.plt_interface.fig, self.data
+                "make_figure", self.plt_interface.fig, self.data_post
             )
             self.plt_interface.draw()
             logger.info("Reloaded make_figure")
